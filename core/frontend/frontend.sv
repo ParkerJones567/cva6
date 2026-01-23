@@ -415,6 +415,7 @@ module frontend
     //  In case of flush, raise the flushed flag in all slots.
     if (flush_i) begin
       fetchbuf_flushed_d = '1;
+      fetchbuf_valid_d = '0;
     end
     //  Free read entry (in the case of fall-through mode, free the entry
     //  only if there is no pending fetch)
@@ -664,36 +665,33 @@ module frontend
     if (npc_rst_load_q) begin
       npc_d         = boot_addr_i;
       fetch_address = boot_addr_i;
-    end else begin
-      fetch_address = npc_q;
-      // keep stable by default
-      npc_d         = npc_q;
-    end
+    end 
     // 0. Branch Prediction
-    if (bp_valid) begin
+    else if (bp_valid) begin
       fetch_address = predict_address;
       npc_d = predict_address;
-    end
+    end 
     // 1. Default assignment
-    if (pop_fetch) begin
+    else if (pop_fetch) begin
       npc_d = {
         fetch_address[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}
       };
     end
     // 2. Replay instruction fetch
-    if (replay) begin
+    else if (replay) begin
       npc_d = replay_addr;
     end
     // 3. Control flow change request
-    if (is_mispredict) begin
+    else if (is_mispredict) begin
       npc_d = resolved_branch_i.target_address;
+      fetch_address = resolved_branch_i.target_address;
     end
     // 4. Return from environment call
-    if (eret_i) begin
+    else if (eret_i) begin
       npc_d = epc_i;
     end
     // 5. Exception/Interrupt
-    if (ex_valid_i) begin
+    else if (ex_valid_i) begin
       npc_d = trap_vector_base_i;
     end
     // 6. Pipeline Flush because of CSR side effects
@@ -705,13 +703,18 @@ module frontend
     // or if the commit stage is halted, just take the current pc of the
     // instruction in the commit stage
     // IMPROVEMENT: This adder can at least be merged with the one in the csr_regfile stage
-    if (set_pc_commit_i) begin
+    else if (set_pc_commit_i) begin
       npc_d = pc_commit_i + (halt_i ? '0 : {{CVA6Cfg.VLEN - 3{1'b0}}, 3'b100});
     end
     // 7. Debug
     // enter debug on a hard-coded base-address
-    if (CVA6Cfg.DebugEn && set_debug_pc_i)
+    else if (CVA6Cfg.DebugEn && set_debug_pc_i) begin
       npc_d = CVA6Cfg.DmBaseAddress[CVA6Cfg.VLEN-1:0] + CVA6Cfg.HaltAddress[CVA6Cfg.VLEN-1:0];
+    end else begin
+      fetch_address = npc_q;
+      // keep stable by default
+      npc_d         = npc_q;
+    end
     npc_fetch_address = fetch_address;
   end
 
