@@ -223,9 +223,12 @@ module cva6_pipeline
     // Write buffer status to know if empty - EX_STAGE
     input logic dcache_wbuffer_empty_i,
     // Write buffer status to know if not non idempotent - EX_STAGE
-    input logic dcache_wbuffer_not_ni_i
+    input logic dcache_wbuffer_not_ni_i,
+
+    output logic flush_o  //need to signal memory system to kill outstanding requests
 );
 
+  assign flush_o = flush_ctrl_if; //tie to flush_ctrl_if for now
 
   localparam type exception_t = struct packed {
     logic [CVA6Cfg.XLEN-1:0] cause;  // cause of exception
