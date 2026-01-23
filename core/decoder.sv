@@ -407,6 +407,13 @@ module decoder
               // this is just a read
               if (instr.itype.rs1 == '0) instruction_o.op = ariane_pkg::CSR_READ;
               else instruction_o.op = ariane_pkg::CSR_SET;
+              unique case (instruction_i[31:20])
+              riscv::CSR_VXRM: begin
+                  illegal_instr = 1'b1;
+              end
+              default: begin
+              end
+            endcase
             end
             // atomically clear values in the CSR and write back to rd
             3'b011: begin  // CSRRC
@@ -414,6 +421,13 @@ module decoder
               // this is just a read
               if (instr.itype.rs1 == '0) instruction_o.op = ariane_pkg::CSR_READ;
               else instruction_o.op = ariane_pkg::CSR_CLEAR;
+              unique case (instruction_i[31:20])
+              riscv::CSR_VXRM: begin
+                  illegal_instr = 1'b1;
+              end
+              default: begin
+              end
+              endcase
             end
             // use zimm and iimm
             3'b101: begin  // CSRRWI
@@ -421,6 +435,13 @@ module decoder
               imm_select = IIMM;
               instruction_o.use_zimm = 1'b1;
               instruction_o.op = ariane_pkg::CSR_WRITE;
+              unique case (instruction_i[31:20])
+                riscv::CSR_VXRM: begin
+                    illegal_instr = 1'b1;
+                end
+                default: begin
+                end
+              endcase
             end
             3'b110: begin  // CSRRSI
               instruction_o.rs1 = instr.itype.rs1;
@@ -429,6 +450,13 @@ module decoder
               // this is just a read
               if (instr.itype.rs1 == 5'b0) instruction_o.op = ariane_pkg::CSR_READ;
               else instruction_o.op = ariane_pkg::CSR_SET;
+              unique case (instruction_i[31:20])
+                riscv::CSR_VXRM: begin
+                    illegal_instr = 1'b1;
+                end
+                default: begin
+                end
+              endcase
             end
             3'b111: begin  // CSRRCI
               instruction_o.rs1 = instr.itype.rs1;
@@ -437,6 +465,13 @@ module decoder
               // this is just a read
               if (instr.itype.rs1 == '0) instruction_o.op = ariane_pkg::CSR_READ;
               else instruction_o.op = ariane_pkg::CSR_CLEAR;
+              unique case (instruction_i[31:20])
+                riscv::CSR_VXRM: begin
+                    illegal_instr = 1'b1;
+                end
+                default: begin
+                end
+              endcase
             end
             default: illegal_instr = 1'b1;
           endcase
