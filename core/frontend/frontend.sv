@@ -666,6 +666,11 @@ module frontend
       npc_d         = boot_addr_i;
       fetch_address = boot_addr_i;
     end 
+    // 3. Control flow change request
+    else if (is_mispredict) begin
+      npc_d = resolved_branch_i.target_address;
+      fetch_address = resolved_branch_i.target_address;
+    end
     // 0. Branch Prediction
     else if (bp_valid) begin
       fetch_address = predict_address;
@@ -681,11 +686,7 @@ module frontend
     else if (replay) begin
       npc_d = replay_addr;
     end
-    // 3. Control flow change request
-    else if (is_mispredict) begin
-      npc_d = resolved_branch_i.target_address;
-      fetch_address = resolved_branch_i.target_address;
-    end
+
     // 4. Return from environment call
     else if (eret_i) begin
       npc_d = epc_i;
