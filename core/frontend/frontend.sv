@@ -310,7 +310,7 @@ module frontend
       end
       // calculate the jump target address
       if (taken_rvc_cf[i] || taken_rvi_cf[i]) begin
-        predict_address = addr[i] + (taken_rvc_cf[i] ? rvc_imm[i] : rvi_imm[i]);
+        predict_address = fetchbuf_q[fetchbuf_rindex_q] + (taken_rvc_cf[i] ? rvc_imm[i] : rvi_imm[i]);
       end
     end
   end
@@ -375,7 +375,7 @@ module frontend
   fetchbuf_id_t fetchbuf_free_index;
   logic fetchbuf_w, fetchbuf_w_q;
   fetchbuf_id_t fetchbuf_windex, fetchbuf_windex_q;
-  logic         fetchbuf_r;
+  logic         fetchbuf_r, fetchbuf_rindex_q;
   fetchbuf_t    fetchbuf_rdata;
   fetchbuf_id_t fetchbuf_rindex;
   fetchbuf_id_t fetchbuf_last_id_q;
@@ -425,6 +425,7 @@ module frontend
     // Flush on bp_valid
     if (bp_valid) begin
       fetchbuf_flushed_d[fetchbuf_last_id_q] = 1'b1;
+      fetchbuf_valid_d[fetchbuf_last_id_q] = 1'b0;
     end
     // Free on exception
     //if (fetchbuf_w_q && ((CVA6Cfg.MmuPresent && ex_s1) || bp_valid) || kill_req_q) begin
@@ -486,7 +487,7 @@ module frontend
   assign data_rvalid = fetchbuf_r && !fetchbuf_flushed_q[fetchbuf_rindex] && !kill_s2;
 
   //assign obi_vaddr_d = pop_fetch ?  : obi_vaddr_qvaddr_d;
-  assign vaddr_d = (pop_fetch || kill_s2) ? npc_fetch_address : vaddr_q;
+  assign vaddr_d = (pop_fetch || kill_s2 || ras_predict.valid) ? npc_fetch_address : vaddr_q;
   assign fetch_req_o.vaddr = npc_fetch_address;
   assign paddr = CVA6Cfg.MmuPresent ? arsp_i.fetch_paddr : npc_fetch_address;
 
@@ -534,7 +535,7 @@ module frontend
   // ---------------
   // Retire Load
   // ---------------
-  assign fetchbuf_rindex = (CVA6Cfg.NrFetchBufEntries > 1) ? fetchbuf_id_t'(obi_fetch_rsp_i.r.rid) : 1'b0;
+  assign fetchbuf_rindex = (CVA6Cfg.NrFetchBufEntries > 1) ? fetchbuf_id_t'(obi_fetch_rsp_i.r.rid) : 1'b0;  //OBI interface ID says which port in the fetchbuffer is used, need to buffer this in memory system? This field seems intended for hart ID?
   assign fetchbuf_rdata = fetchbuf_q[fetchbuf_rindex];
 
   //  read the pending fetch buffer
@@ -550,7 +551,7 @@ module frontend
   assign obi_fetch_req_o.a.we = '0;
   assign obi_fetch_req_o.a.be = '1;
   assign obi_fetch_req_o.a.wdata = '0;
-  assign obi_fetch_req_o.a.aid = (!CVA6Cfg.MmuPresent && (obi_a_state_q == TRANSPARENT)) ? fetchbuf_windex : fetchbuf_windex_q;
+  assign obi_fetch_req_o.a.aid = (!CVA6Cfg.MmuPresent && (obi_a_state_q == TRANSPARENT)) ? fetchbuf_windex : fetchbuf_windex_q;  //Index stored in OBI_req.id. Need to buffer in memory system
   assign obi_fetch_req_o.a.a_optional.auser = '0;
   assign obi_fetch_req_o.a.a_optional.wuser = '0;
   assign obi_fetch_req_o.a.a_optional.atop = '0;
@@ -605,6 +606,7 @@ module frontend
       paddr_is_cacheable_q <= '0;
       kill_req_q <= '0;
       fetchbuf_windex_q <= '0;
+      fetchbuf_rindex_q <= '0;
       fetchbuf_w_q <= '0;
       vaddr_q <= '0;
     end else begin
@@ -616,6 +618,7 @@ module frontend
       kill_req_q <= kill_req_d;
       //if (!ex_s1) begin
       fetchbuf_windex_q <= fetchbuf_windex;
+      fetchbuf_rindex_q <= fetchbuf_rindex;
       fetchbuf_w_q <= fetchbuf_w;
       //end
       vaddr_q <= vaddr_d;
@@ -654,6 +657,7 @@ module frontend
   // 5. Pipeline Flush because of CSR side effects
   // Mis-predict handling is a little bit different
   // select PC a.k.a PC Gen
+
   always_comb begin : npc_select
     automatic logic [CVA6Cfg.VLEN-1:0] fetch_address;
     // check whether we come out of reset
@@ -674,13 +678,14 @@ module frontend
     // 0. Branch Prediction
     else if (bp_valid) begin
       fetch_address = predict_address;
-      npc_d = predict_address;
+      npc_d = data_req ? { predict_address[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}} : predict_address; //In case data req not ready to be issued, set npc_d = predict address
     end 
     // 1. Default assignment
     else if (pop_fetch) begin
       npc_d = {
-        fetch_address[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}
+        npc_q[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}
       };
+      fetch_address = npc_q;
     end
     // 2. Replay instruction fetch
     else if (replay) begin
