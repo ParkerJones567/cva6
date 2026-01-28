@@ -228,7 +228,7 @@ module cva6_pipeline
     output logic flush_o  //need to signal memory system to kill outstanding requests
 );
 
-  assign flush_o = flush_ctrl_if; //tie to flush_ctrl_if for now
+  assign flush_o = fetch_req_o.kill_req;
 
   localparam type exception_t = struct packed {
     logic [CVA6Cfg.XLEN-1:0] cause;  // cause of exception
