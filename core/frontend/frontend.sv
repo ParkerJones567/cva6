@@ -56,7 +56,7 @@ module frontend
     input logic eret_i,
     // Next PC when returning from exception - CSR
     input logic [CVA6Cfg.VLEN-1:0] epc_i,
-    // Next PC when jumping into exception - CSR
+    // Next PC when jumping into exception - CSRF
     input logic [CVA6Cfg.VLEN-1:0] trap_vector_base_i,
     // Debug event - CSR
     input logic set_debug_pc_i,
@@ -79,7 +79,8 @@ module frontend
     // Handshake's valid between fetch and decode - ID_STAGE
     output logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_valid_o,
     // Handshake's ready between fetch and decode - ID_STAGE
-    input logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_ready_i
+    input logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_ready_i,
+    output logic                            [           CVA6Cfg.VLEN-1:0] fetch_addr_o
 );
 
   localparam type bht_update_t = struct packed {
@@ -109,6 +110,7 @@ module frontend
   logic                                                          fetch_valid_q;
   ariane_pkg::frontend_exception_t                               fetch_ex_valid_q;
   logic                            [           CVA6Cfg.VLEN-1:0] fetch_vaddr_q;
+  assign fetch_addr_o = fetch_vaddr_q;
   logic                            [          CVA6Cfg.GPLEN-1:0] fetch_gpaddr_q;
   logic                            [                       31:0] fetch_tinst_q;
   logic                                                          fetch_gva_q;
@@ -176,6 +178,10 @@ module frontend
   logic kill_s1, kill_s2;
 
   logic serving_unaligned;
+
+  logic                            [           CVA6Cfg.VLEN-1:0] instr_realign_input;
+
+  assign instr_realign_input = is_return ? vaddr_d : vaddr_q; 
   // Re-align instructions
   instr_realign #(
       .CVA6Cfg(CVA6Cfg)
@@ -374,6 +380,7 @@ module frontend
   logic fetchbuf_empty, fetchbuf_full;
   fetchbuf_id_t fetchbuf_free_index;
   logic fetchbuf_w, fetchbuf_w_q;
+  logic gnt_i_q;
   fetchbuf_id_t fetchbuf_windex, fetchbuf_windex_q;
   logic         fetchbuf_r, fetchbuf_rindex_q;
   fetchbuf_t    fetchbuf_rdata;
@@ -414,7 +421,8 @@ module frontend
 
     //  In case of flush, raise the flushed flag in all slots.
     if (flush_i) begin
-      fetchbuf_flushed_d = '1;
+      //fetchbuf_flushed_d = '1;
+      fetchbuf_flushed_d = '0;
       fetchbuf_valid_d = '0;
     end
     //  Free read entry (in the case of fall-through mode, free the entry
@@ -424,7 +432,8 @@ module frontend
     end
     // Flush on bp_valid
     if (bp_valid) begin
-      fetchbuf_flushed_d[fetchbuf_last_id_q] = 1'b1;
+      //fetchbuf_flushed_d[fetchbuf_last_id_q] = 1'b1;
+      fetchbuf_flushed_d[fetchbuf_last_id_q] = 1'b0;
       fetchbuf_valid_d[fetchbuf_last_id_q] = 1'b0;
     end
     // Free on exception
@@ -432,7 +441,7 @@ module frontend
     //  fetchbuf_valid_d[fetchbuf_windex_q] = 1'b0;
     //end
     //  Track a new outstanding operation in the fetch buffer
-    if (fetchbuf_w) begin
+    if (fetchbuf_w && gnt_i_q) begin
       fetchbuf_flushed_d[fetchbuf_windex] = 1'b0;
       fetchbuf_valid_d[fetchbuf_windex]   = 1'b1;
     end
@@ -447,7 +456,7 @@ module frontend
     end else begin
       fetchbuf_flushed_q <= fetchbuf_flushed_d;
       fetchbuf_valid_q   <= fetchbuf_valid_d;
-      if (fetchbuf_w) begin
+      if (fetchbuf_w && gnt_i_q) begin
         fetchbuf_last_id_q                <= fetchbuf_windex;
         fetchbuf_q[fetchbuf_windex].vaddr <= vaddr_d;
       end
@@ -492,7 +501,8 @@ module frontend
   assign paddr = CVA6Cfg.MmuPresent ? arsp_i.fetch_paddr : npc_fetch_address;
 
   assign data_req = (CVA6Cfg.MmuPresent ? fetchbuf_w_q && !ex_s1 && !bp_valid : fetchbuf_w);
-
+  logic test_fetchrsp_rdy;
+  assign test_fetchrsp_rdy = fetch_rsp_i.ready;
   always_comb begin : p_fsm_common
     // default assignmen
     kill_req_d = 1'b0;
@@ -609,6 +619,7 @@ module frontend
       fetchbuf_rindex_q <= '0;
       fetchbuf_w_q <= '0;
       vaddr_q <= '0;
+      gnt_i_q <= '0;
     end else begin
       if (obi_a_state_q == TRANSPARENT) begin
         paddr_q <= paddr;
@@ -620,6 +631,7 @@ module frontend
       fetchbuf_windex_q <= fetchbuf_windex;
       fetchbuf_rindex_q <= fetchbuf_rindex;
       fetchbuf_w_q <= fetchbuf_w;
+      gnt_i_q <= obi_fetch_rsp_i.gnt;
       //end
       vaddr_q <= vaddr_d;
     end

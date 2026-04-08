@@ -384,12 +384,14 @@ module load_unit
         paddr_q <= paddr;
         be_q <= lsu_ctrl_i.be;
         paddr_is_cacheable_q <= paddr_is_cacheable;
+        
       end
+      ldbuf_w_q <= ldbuf_w;
       obi_a_state_q <= obi_a_state_d;
       kill_req_q <= kill_req_d;
       //if (!ex_s1) begin
       ldbuf_windex_q <= ldbuf_windex;
-      ldbuf_w_q <= ldbuf_w;
+      
       //end
     end
   end

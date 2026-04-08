@@ -225,7 +225,11 @@ module cva6_pipeline
     // Write buffer status to know if not non idempotent - EX_STAGE
     input logic dcache_wbuffer_not_ni_i,
 
-    output logic flush_o  //need to signal memory system to kill outstanding requests
+    output logic flush_o,  //need to signal memory system to kill outstanding requests
+    output [           CVA6Cfg.VLEN-1:0] fetch_addr_o,
+        output logic log_reg_w_o,
+    output logic [           4:0] log_reg_w_addr_o,
+    output logic [31:0] log_reg_w_data_o
 );
 
   assign flush_o = fetch_req_o.kill_req;
@@ -670,7 +674,8 @@ module cva6_pipeline
       .obi_fetch_rsp_i    (obi_fetch_rsp_i),                //OBI
       .fetch_entry_o      (fetch_entry_if_id),
       .fetch_entry_valid_o(fetch_valid_if_id),
-      .fetch_entry_ready_i(fetch_ready_id_if)
+      .fetch_entry_ready_i(fetch_ready_id_if),
+      .fetch_addr_o(fetch_addr_o)
   );
 
   // ---------
@@ -889,7 +894,10 @@ module cva6_pipeline
       .rvfi_issue_pointer_o (rvfi_issue_pointer),
       .rvfi_commit_pointer_o(rvfi_commit_pointer),
       .rvfi_rs1_o           (rvfi_rs1),
-      .rvfi_rs2_o           (rvfi_rs2)
+      .rvfi_rs2_o           (rvfi_rs2),
+      .log_reg_w_o(log_reg_w_o),
+      .log_reg_w_addr_o(log_reg_w_addr_o),
+      .log_reg_w_data_o(log_reg_w_data_o)
   );
 
   // ---------

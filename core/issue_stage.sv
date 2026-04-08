@@ -163,7 +163,10 @@ module issue_stage
     // Information dedicated to RVFI - RVFI
     output logic [CVA6Cfg.NrIssuePorts-1:0][CVA6Cfg.XLEN-1:0] rvfi_rs1_o,
     // Information dedicated to RVFI - RVFI
-    output logic [CVA6Cfg.NrIssuePorts-1:0][CVA6Cfg.XLEN-1:0] rvfi_rs2_o
+    output logic [CVA6Cfg.NrIssuePorts-1:0][CVA6Cfg.XLEN-1:0] rvfi_rs2_o,
+    output logic log_reg_w_o,
+    output logic [           4:0] log_reg_w_addr_o,
+    output logic [31:0] log_reg_w_data_o
 );
   // ---------------------------------------------------
   // Scoreboard (SB) <-> Issue and Read Operands (IRO)
@@ -300,7 +303,11 @@ module issue_stage
       .we_fpr_i,
       .stall_issue_o,
       .rvfi_rs1_o              (rvfi_rs1_o),
-      .rvfi_rs2_o              (rvfi_rs2_o)
+      .rvfi_rs2_o              (rvfi_rs2_o),
+      
+      .log_reg_w_o(log_reg_w_o),
+      .log_reg_w_addr_o(log_reg_w_addr_o),
+      .log_reg_w_data_o(log_reg_w_data_o)
   );
 
 endmodule
