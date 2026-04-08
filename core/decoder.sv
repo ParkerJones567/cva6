@@ -411,6 +411,9 @@ module decoder
               riscv::CSR_VXRM: begin
                   illegal_instr = 1'b1;
               end
+              riscv::CSR_VLENB: begin
+                  illegal_instr = 1'b1;
+              end
               default: begin
               end
             endcase
@@ -423,6 +426,9 @@ module decoder
               else instruction_o.op = ariane_pkg::CSR_CLEAR;
               unique case (instruction_i[31:20])
               riscv::CSR_VXRM: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VLENB: begin
                   illegal_instr = 1'b1;
               end
               default: begin
@@ -439,6 +445,9 @@ module decoder
                 riscv::CSR_VXRM: begin
                     illegal_instr = 1'b1;
                 end
+                riscv::CSR_VLENB: begin
+                  illegal_instr = 1'b1;
+              end
                 default: begin
                 end
               endcase
@@ -454,6 +463,9 @@ module decoder
                 riscv::CSR_VXRM: begin
                     illegal_instr = 1'b1;
                 end
+                riscv::CSR_VLENB: begin
+                  illegal_instr = 1'b1;
+              end
                 default: begin
                 end
               endcase
@@ -469,6 +481,9 @@ module decoder
                 riscv::CSR_VXRM: begin
                     illegal_instr = 1'b1;
                 end
+                riscv::CSR_VLENB: begin
+                  illegal_instr = 1'b1;
+              end
                 default: begin
                 end
               endcase
