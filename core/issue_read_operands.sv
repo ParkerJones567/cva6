@@ -127,11 +127,7 @@ module issue_read_operands
     // Information dedicated to RVFI - RVFI
     output logic [CVA6Cfg.NrIssuePorts-1:0][CVA6Cfg.XLEN-1:0] rvfi_rs1_o,
     // Information dedicated to RVFI - RVFI
-    output logic [CVA6Cfg.NrIssuePorts-1:0][CVA6Cfg.XLEN-1:0] rvfi_rs2_o,
-
-    output logic log_reg_w_o,
-    output logic [           4:0] log_reg_w_addr_o,
-    output logic [31:0] log_reg_w_data_o
+    output logic [CVA6Cfg.NrIssuePorts-1:0][CVA6Cfg.XLEN-1:0] rvfi_rs2_o
 
 );
 
@@ -250,7 +246,7 @@ module issue_read_operands
   end
 
   // Allow a cvxif transaction if we WaW condition are ok.
-    assign cvxif_req_allowed = (issue_instr_i[0].fu == CVXIF); //This will cause issues with vector writeback to scalar?
+  assign cvxif_req_allowed = (issue_instr_i[0].fu == CVXIF) && !stall_waw[0];
   assign cvxif_instruction_valid = !issue_instr_i[0].ex.valid && issue_instr_valid_i[0] && cvxif_req_allowed;
   assign x_transaction_accepted_o = x_issue_valid_o && x_issue_ready_i && x_issue_resp_i.accept;
   assign x_transaction_rejected = x_issue_valid_o && x_issue_ready_i && ~x_issue_resp_i.accept;
@@ -890,9 +886,7 @@ module issue_read_operands
       end
     end
   end
-  logic test_cond1, test_cond_2;
-  assign test_cond1 = rd_clobber_gpr[issue_instr_i[0].rd] == NONE;
-  assign test_cond2 = (we_gpr_i[0] && waddr_i[0] == issue_instr_i[0].rd);
+
   always_comb begin : gen_check_waw_dependencies
     stall_waw = '1;
     for (int unsigned i = 0; i < CVA6Cfg.NrIssuePorts; i++) begin
@@ -905,12 +899,14 @@ module issue_read_operands
                 issue_instr_i[i].op
             )) ? (rd_clobber_fpr[issue_instr_i[i].rd] == NONE) :
                 (rd_clobber_gpr[issue_instr_i[i].rd] == NONE)) begin
-            stall_waw[i] = 1'b0;
+          stall_waw[i] = 1'b0;
         end
         // or check that the target destination register will be written in this cycle by the
         // commit stage
         for (int unsigned c = 0; c < CVA6Cfg.NrCommitPorts; c++) begin
-          if ((CVA6Cfg.FpPresent && ariane_pkg::is_rd_fpr(issue_instr_i[i].op)) ? (we_fpr_i[c] && waddr_i[c] == issue_instr_i[i].rd) :
+          if ((CVA6Cfg.FpPresent && ariane_pkg::is_rd_fpr(
+                  issue_instr_i[i].op
+              )) ? (we_fpr_i[c] && waddr_i[c] == issue_instr_i[i].rd) :
                   (we_gpr_i[c] && waddr_i[c] == issue_instr_i[i].rd)) begin
             stall_waw[i] = 1'b0;
           end
@@ -998,9 +994,6 @@ module issue_read_operands
         .we_i     (we_pack)
     );
   end else begin : gen_asic_regfile
-    assign log_reg_w_o = we_pack;
-    assign log_reg_w_addr_o = waddr_pack;
-    assign log_reg_w_data_o = wdata_pack;
     ariane_regfile #(
         .CVA6Cfg      (CVA6Cfg),
         .DATA_WIDTH   (CVA6Cfg.XLEN),

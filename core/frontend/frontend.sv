@@ -56,7 +56,7 @@ module frontend
     input logic eret_i,
     // Next PC when returning from exception - CSR
     input logic [CVA6Cfg.VLEN-1:0] epc_i,
-    // Next PC when jumping into exception - CSRF
+    // Next PC when jumping into exception - CSR
     input logic [CVA6Cfg.VLEN-1:0] trap_vector_base_i,
     // Debug event - CSR
     input logic set_debug_pc_i,
@@ -79,8 +79,7 @@ module frontend
     // Handshake's valid between fetch and decode - ID_STAGE
     output logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_valid_o,
     // Handshake's ready between fetch and decode - ID_STAGE
-    input logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_ready_i,
-    output logic                            [           CVA6Cfg.VLEN-1:0] fetch_addr_o
+    input logic [CVA6Cfg.NrIssuePorts-1:0] fetch_entry_ready_i
 );
 
   localparam type bht_update_t = struct packed {
@@ -110,7 +109,6 @@ module frontend
   logic                                                          fetch_valid_q;
   ariane_pkg::frontend_exception_t                               fetch_ex_valid_q;
   logic                            [           CVA6Cfg.VLEN-1:0] fetch_vaddr_q;
-  assign fetch_addr_o = fetch_vaddr_q;
   logic                            [          CVA6Cfg.GPLEN-1:0] fetch_gpaddr_q;
   logic                            [                       31:0] fetch_tinst_q;
   logic                                                          fetch_gva_q;
@@ -178,10 +176,6 @@ module frontend
   logic kill_s1, kill_s2;
 
   logic serving_unaligned;
-
-  logic                            [           CVA6Cfg.VLEN-1:0] instr_realign_input;
-
-  assign instr_realign_input = is_return ? vaddr_d : vaddr_q; 
   // Re-align instructions
   instr_realign #(
       .CVA6Cfg(CVA6Cfg)
@@ -316,7 +310,7 @@ module frontend
       end
       // calculate the jump target address
       if (taken_rvc_cf[i] || taken_rvi_cf[i]) begin
-        predict_address = fetchbuf_q[fetchbuf_rindex_q] + (taken_rvc_cf[i] ? rvc_imm[i] : rvi_imm[i]);
+        predict_address = addr[i] + (taken_rvc_cf[i] ? rvc_imm[i] : rvi_imm[i]);
       end
     end
   end
@@ -380,9 +374,8 @@ module frontend
   logic fetchbuf_empty, fetchbuf_full;
   fetchbuf_id_t fetchbuf_free_index;
   logic fetchbuf_w, fetchbuf_w_q;
-  logic gnt_i_q;
   fetchbuf_id_t fetchbuf_windex, fetchbuf_windex_q;
-  logic         fetchbuf_r, fetchbuf_rindex_q;
+  logic         fetchbuf_r;
   fetchbuf_t    fetchbuf_rdata;
   fetchbuf_id_t fetchbuf_rindex;
   fetchbuf_id_t fetchbuf_last_id_q;
@@ -421,9 +414,7 @@ module frontend
 
     //  In case of flush, raise the flushed flag in all slots.
     if (flush_i) begin
-      //fetchbuf_flushed_d = '1;
-      fetchbuf_flushed_d = '0;
-      fetchbuf_valid_d = '0;
+      fetchbuf_flushed_d = '1;
     end
     //  Free read entry (in the case of fall-through mode, free the entry
     //  only if there is no pending fetch)
@@ -432,16 +423,14 @@ module frontend
     end
     // Flush on bp_valid
     if (bp_valid) begin
-      //fetchbuf_flushed_d[fetchbuf_last_id_q] = 1'b1;
-      fetchbuf_flushed_d[fetchbuf_last_id_q] = 1'b0;
-      fetchbuf_valid_d[fetchbuf_last_id_q] = 1'b0;
+      fetchbuf_flushed_d[fetchbuf_last_id_q] = 1'b1;
     end
     // Free on exception
     //if (fetchbuf_w_q && ((CVA6Cfg.MmuPresent && ex_s1) || bp_valid) || kill_req_q) begin
     //  fetchbuf_valid_d[fetchbuf_windex_q] = 1'b0;
     //end
     //  Track a new outstanding operation in the fetch buffer
-    if (fetchbuf_w && gnt_i_q) begin
+    if (fetchbuf_w) begin
       fetchbuf_flushed_d[fetchbuf_windex] = 1'b0;
       fetchbuf_valid_d[fetchbuf_windex]   = 1'b1;
     end
@@ -456,7 +445,7 @@ module frontend
     end else begin
       fetchbuf_flushed_q <= fetchbuf_flushed_d;
       fetchbuf_valid_q   <= fetchbuf_valid_d;
-      if (fetchbuf_w && gnt_i_q) begin
+      if (fetchbuf_w) begin
         fetchbuf_last_id_q                <= fetchbuf_windex;
         fetchbuf_q[fetchbuf_windex].vaddr <= vaddr_d;
       end
@@ -496,13 +485,12 @@ module frontend
   assign data_rvalid = fetchbuf_r && !fetchbuf_flushed_q[fetchbuf_rindex] && !kill_s2;
 
   //assign obi_vaddr_d = pop_fetch ?  : obi_vaddr_qvaddr_d;
-  assign vaddr_d = (pop_fetch || kill_s2 || ras_predict.valid) ? npc_fetch_address : vaddr_q;
+  assign vaddr_d = (pop_fetch || kill_s2) ? npc_fetch_address : vaddr_q;
   assign fetch_req_o.vaddr = npc_fetch_address;
   assign paddr = CVA6Cfg.MmuPresent ? arsp_i.fetch_paddr : npc_fetch_address;
 
   assign data_req = (CVA6Cfg.MmuPresent ? fetchbuf_w_q && !ex_s1 && !bp_valid : fetchbuf_w);
-  logic test_fetchrsp_rdy;
-  assign test_fetchrsp_rdy = fetch_rsp_i.ready;
+
   always_comb begin : p_fsm_common
     // default assignmen
     kill_req_d = 1'b0;
@@ -545,7 +533,7 @@ module frontend
   // ---------------
   // Retire Load
   // ---------------
-  assign fetchbuf_rindex = (CVA6Cfg.NrFetchBufEntries > 1) ? fetchbuf_id_t'(obi_fetch_rsp_i.r.rid) : 1'b0;  //OBI interface ID says which port in the fetchbuffer is used, need to buffer this in memory system? This field seems intended for hart ID?
+  assign fetchbuf_rindex = (CVA6Cfg.NrFetchBufEntries > 1) ? fetchbuf_id_t'(obi_fetch_rsp_i.r.rid) : 1'b0;
   assign fetchbuf_rdata = fetchbuf_q[fetchbuf_rindex];
 
   //  read the pending fetch buffer
@@ -561,7 +549,7 @@ module frontend
   assign obi_fetch_req_o.a.we = '0;
   assign obi_fetch_req_o.a.be = '1;
   assign obi_fetch_req_o.a.wdata = '0;
-  assign obi_fetch_req_o.a.aid = (!CVA6Cfg.MmuPresent && (obi_a_state_q == TRANSPARENT)) ? fetchbuf_windex : fetchbuf_windex_q;  //Index stored in OBI_req.id. Need to buffer in memory system
+  assign obi_fetch_req_o.a.aid = (!CVA6Cfg.MmuPresent && (obi_a_state_q == TRANSPARENT)) ? fetchbuf_windex : fetchbuf_windex_q;
   assign obi_fetch_req_o.a.a_optional.auser = '0;
   assign obi_fetch_req_o.a.a_optional.wuser = '0;
   assign obi_fetch_req_o.a.a_optional.atop = '0;
@@ -616,10 +604,8 @@ module frontend
       paddr_is_cacheable_q <= '0;
       kill_req_q <= '0;
       fetchbuf_windex_q <= '0;
-      fetchbuf_rindex_q <= '0;
       fetchbuf_w_q <= '0;
       vaddr_q <= '0;
-      gnt_i_q <= '0;
     end else begin
       if (obi_a_state_q == TRANSPARENT) begin
         paddr_q <= paddr;
@@ -629,9 +615,7 @@ module frontend
       kill_req_q <= kill_req_d;
       //if (!ex_s1) begin
       fetchbuf_windex_q <= fetchbuf_windex;
-      fetchbuf_rindex_q <= fetchbuf_rindex;
       fetchbuf_w_q <= fetchbuf_w;
-      gnt_i_q <= obi_fetch_rsp_i.gnt;
       //end
       vaddr_q <= vaddr_d;
     end
@@ -669,7 +653,6 @@ module frontend
   // 5. Pipeline Flush because of CSR side effects
   // Mis-predict handling is a little bit different
   // select PC a.k.a PC Gen
-
   always_comb begin : npc_select
     automatic logic [CVA6Cfg.VLEN-1:0] fetch_address;
     // check whether we come out of reset
@@ -681,35 +664,36 @@ module frontend
     if (npc_rst_load_q) begin
       npc_d         = boot_addr_i;
       fetch_address = boot_addr_i;
-    end 
-    // 3. Control flow change request
-    else if (is_mispredict) begin
-      npc_d = resolved_branch_i.target_address;
-      fetch_address = resolved_branch_i.target_address;
+    end else begin
+      fetch_address = npc_q;
+      // keep stable by default
+      npc_d         = npc_q;
     end
     // 0. Branch Prediction
-    else if (bp_valid) begin
+    if (bp_valid) begin
       fetch_address = predict_address;
-      npc_d = data_req ? { predict_address[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}} : predict_address; //In case data req not ready to be issued, set npc_d = predict address
-    end 
+      npc_d = predict_address;
+    end
     // 1. Default assignment
-    else if (pop_fetch) begin
+    if (pop_fetch) begin
       npc_d = {
-        npc_q[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}
+        fetch_address[CVA6Cfg.VLEN-1:CVA6Cfg.FETCH_ALIGN_BITS] + 1, {CVA6Cfg.FETCH_ALIGN_BITS{1'b0}}
       };
-      fetch_address = npc_q;
     end
     // 2. Replay instruction fetch
-    else if (replay) begin
+    if (replay) begin
       npc_d = replay_addr;
     end
-
+    // 3. Control flow change request
+    if (is_mispredict) begin
+      npc_d = resolved_branch_i.target_address;
+    end
     // 4. Return from environment call
-    else if (eret_i) begin
+    if (eret_i) begin
       npc_d = epc_i;
     end
     // 5. Exception/Interrupt
-    else if (ex_valid_i) begin
+    if (ex_valid_i) begin
       npc_d = trap_vector_base_i;
     end
     // 6. Pipeline Flush because of CSR side effects
@@ -721,18 +705,13 @@ module frontend
     // or if the commit stage is halted, just take the current pc of the
     // instruction in the commit stage
     // IMPROVEMENT: This adder can at least be merged with the one in the csr_regfile stage
-    else if (set_pc_commit_i) begin
+    if (set_pc_commit_i) begin
       npc_d = pc_commit_i + (halt_i ? '0 : {{CVA6Cfg.VLEN - 3{1'b0}}, 3'b100});
     end
     // 7. Debug
     // enter debug on a hard-coded base-address
-    else if (CVA6Cfg.DebugEn && set_debug_pc_i) begin
+    if (CVA6Cfg.DebugEn && set_debug_pc_i)
       npc_d = CVA6Cfg.DmBaseAddress[CVA6Cfg.VLEN-1:0] + CVA6Cfg.HaltAddress[CVA6Cfg.VLEN-1:0];
-    end else begin
-      fetch_address = npc_q;
-      // keep stable by default
-      npc_d         = npc_q;
-    end
     npc_fetch_address = fetch_address;
   end
 

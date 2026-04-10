@@ -31,8 +31,7 @@ package cva6_config_pkg;
       AxiIdWidth: unsigned'(CVA6ConfigAxiIdWidth),
       AxiUserWidth: unsigned'(CVA6ConfigDataUserWidth),
       MemTidWidth: unsigned'(CVA6ConfigAxiIdWidth),
-      NrLoadBufEntries: unsigned'(1), //from 1
-      //NrLoadBufEntries: unsigned'(2),
+      NrLoadBufEntries: unsigned'(2),
       RVF: bit'(0),
       RVD: bit'(0),
       XF16: bit'(0),
@@ -54,7 +53,7 @@ package cva6_config_pkg;
       RVZicntr: bit'(0),
       RVZifencei: bit'(0),
       RVZihpm: bit'(0),
-      NrScoreboardEntries: unsigned'(2),// from 2
+      NrScoreboardEntries: unsigned'(4),
       PerfCounterEn: bit'(0),
       MmuPresent: bit'(0),
       RVS: bit'(0),
