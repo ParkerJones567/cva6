@@ -531,9 +531,9 @@ module cva6_pipeline
   // --------------
   // COMMIT <-> ID
   // --------------
-  logic [CVA6Cfg.NrCommitPorts-1:0][4:0] waddr_commit_id;
-  logic [CVA6Cfg.NrCommitPorts-1:0][CVA6Cfg.XLEN-1:0] wdata_commit_id;
-  logic [CVA6Cfg.NrCommitPorts-1:0] we_gpr_commit_id;
+  logic [CVA6Cfg.NrCommitPorts-1:0][4:0] waddr_commit_id /* verilator public */;
+  logic [CVA6Cfg.NrCommitPorts-1:0][CVA6Cfg.XLEN-1:0] wdata_commit_id /* verilator public */;
+  logic [CVA6Cfg.NrCommitPorts-1:0] we_gpr_commit_id /* verilator public */;
   logic [CVA6Cfg.NrCommitPorts-1:0] we_fpr_commit_id;
   // --------------
   // CSR <-> *
