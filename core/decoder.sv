@@ -411,6 +411,21 @@ module decoder
               riscv::CSR_VXRM: begin
                   illegal_instr = 1'b1;
               end
+              riscv::CSR_VSTART: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VXSAT: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VCSR: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VL: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VTYPE: begin
+                  illegal_instr = 1'b1;
+              end
               riscv::CSR_VLENB: begin
                   illegal_instr = 1'b1;
               end
@@ -428,6 +443,21 @@ module decoder
               riscv::CSR_VXRM: begin
                   illegal_instr = 1'b1;
               end
+              riscv::CSR_VSTART: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VXSAT: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VCSR: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VL: begin
+                  illegal_instr = 1'b1;
+              end
+              riscv::CSR_VTYPE: begin
+                  illegal_instr = 1'b1;
+              end
               riscv::CSR_VLENB: begin
                   illegal_instr = 1'b1;
               end
@@ -443,11 +473,26 @@ module decoder
               instruction_o.op = ariane_pkg::CSR_WRITE;
               unique case (instruction_i[31:20])
                 riscv::CSR_VXRM: begin
+                  illegal_instr = 1'b1;
+                end
+                riscv::CSR_VSTART: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VXSAT: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VCSR: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VL: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VTYPE: begin
                     illegal_instr = 1'b1;
                 end
                 riscv::CSR_VLENB: begin
-                  illegal_instr = 1'b1;
-              end
+                    illegal_instr = 1'b1;
+                end
                 default: begin
                 end
               endcase
@@ -461,11 +506,26 @@ module decoder
               else instruction_o.op = ariane_pkg::CSR_SET;
               unique case (instruction_i[31:20])
                 riscv::CSR_VXRM: begin
+                  illegal_instr = 1'b1;
+                end
+                riscv::CSR_VSTART: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VXSAT: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VCSR: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VL: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VTYPE: begin
                     illegal_instr = 1'b1;
                 end
                 riscv::CSR_VLENB: begin
-                  illegal_instr = 1'b1;
-              end
+                    illegal_instr = 1'b1;
+                end
                 default: begin
                 end
               endcase
@@ -479,11 +539,26 @@ module decoder
               else instruction_o.op = ariane_pkg::CSR_CLEAR;
               unique case (instruction_i[31:20])
                 riscv::CSR_VXRM: begin
+                  illegal_instr = 1'b1;
+                end
+                riscv::CSR_VSTART: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VXSAT: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VCSR: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VL: begin
+                    illegal_instr = 1'b1;
+                end
+                riscv::CSR_VTYPE: begin
                     illegal_instr = 1'b1;
                 end
                 riscv::CSR_VLENB: begin
-                  illegal_instr = 1'b1;
-              end
+                    illegal_instr = 1'b1;
+                end
                 default: begin
                 end
               endcase
