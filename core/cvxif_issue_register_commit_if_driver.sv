@@ -36,7 +36,8 @@ module cvxif_issue_register_commit_if_driver #(
     input logic [31:0] x_off_instr_i,
     input logic [CVA6Cfg.TRANS_ID_BITS-1:0] x_trans_id_i,
     input [(CVA6Cfg.NrRgprPorts/CVA6Cfg.NrIssuePorts)-1:0][CVA6Cfg.XLEN-1:0] register_i,
-    input logic [(CVA6Cfg.NrRgprPorts/CVA6Cfg.NrIssuePorts)-1:0] rs_valid_i
+    input logic [(CVA6Cfg.NrRgprPorts/CVA6Cfg.NrIssuePorts)-1:0] rs_valid_i,
+    input logic stall_issue_raw_i
 );
   // X_ISSUE_REGISTER_SPLIT = 0 : Issue and register transactions are synchrone
   // Mandatory assignement
@@ -45,7 +46,7 @@ module cvxif_issue_register_commit_if_driver #(
   assign register_o.id     = issue_req_o.id;
 
   always_comb begin
-    issue_valid_o       = valid_i && ~flush_i;
+    issue_valid_o       = valid_i && ~flush_i && ~stall_issue_raw_i;
     issue_req_o.instr   = x_off_instr_i;
     issue_req_o.hartid  = hart_id_i;
     issue_req_o.id      = x_trans_id_i;
